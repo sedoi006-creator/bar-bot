@@ -1,0 +1,41 @@
+name: bar-bot
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # каждый 6-й час (UTC) — новая сессия работы бота
+  workflow_dispatch:          # ручной запуск
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bar-bot-single-instance   # гарантия единственного экземпляра бота
+  cancel-in-progress: false
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355           # чуть меньше 6 часов — перезапуск перед следующим cron
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Keep repository active (защита от отключения cron через 60 дней простоя)
+        run: |
+          git config user.name "barbot"
+          git config user.email "barbot@users.noreply.github.com"
+          echo "last-run: $(date -u +%FT%TZ)" > LAST_RUN.txt
+          git add LAST_RUN.txt
+          git commit -m "activity: keep scheduler alive" || true
+          git push || true
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: python -X utf8 bot.py

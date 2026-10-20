@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+token.txt
+bot.out
+bot.err
+find_anon.py
