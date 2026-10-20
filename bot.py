@@ -7,6 +7,7 @@
 import json
 import os
 import re
+import time
 import unicodedata
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -377,6 +378,24 @@ async def on_inline(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     token = load_token()
+    # Автоперезапуск: если polling падает (сбой сети, Conflict, таймаут) —
+    # поднимаем заново. Важно для работы 24/7 в облаке.
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            print(f"[запуск #{attempt}] инициализация бота...", flush=True)
+            run_once(token)
+            print("[остановлен штатно]", flush=True)
+            return
+        except Exception as e:
+            print(f"[сбой #{attempt}] {type(e).__name__}: {e}", flush=True)
+            wait = min(60, 5 * attempt)
+            print(f"[повтор через {wait} сек]", flush=True)
+            time.sleep(wait)
+
+
+def run_once(token: str):
     app = Application.builder().token(token).build()
     # диалог калькулятора регистрируем ДО общего поиска,
     # иначе «76 г» съест обработчик поиска рецептов
@@ -403,8 +422,9 @@ def main():
     app.add_handler(CallbackQueryHandler(on_back, pattern=r"^back$"))
     app.add_handler(InlineQueryHandler(on_inline))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
-    print(f"Бот запущен. Рецептов в базе: {len(RECIPES)}, категорий: {len(CATEGORIES)}")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    print(f"Бот запущен. Рецептов в базе: {len(RECIPES)}, категорий: {len(CATEGORIES)}", flush=True)
+    # stop_signals=None — в GitHub Actions сигналы недоступны, иначе polling зависает
+    app.run_polling(allowed_updates=Update.ALL_TYPES, stop_signals=None)
 
 
 if __name__ == "__main__":

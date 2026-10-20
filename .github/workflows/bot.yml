@@ -38,4 +38,6 @@ jobs:
       - name: Run bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        run: python -X utf8 bot.py
+          PYTHONUNBUFFERED: "1"
+        timeout-minutes: 340
+        run: python -X utf8 -u bot.py
