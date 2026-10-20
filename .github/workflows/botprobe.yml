@@ -1,0 +1,31 @@
+name: botprobe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -r requirements.txt
+      - name: Run bot for 30 sec and capture log
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          set +e
+          timeout --signal=SIGKILL 30 python -X utf8 -u bot.py > botlog.txt 2>&1
+          echo "exit=$?"
+          echo "===== BOTLOG ====="
+          cat botlog.txt
+          echo "===== END ====="
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: botlog
+          path: botlog.txt

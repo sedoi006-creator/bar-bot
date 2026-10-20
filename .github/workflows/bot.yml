@@ -40,12 +40,4 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           PYTHONUNBUFFERED: "1"
         timeout-minutes: 340
-        run: |
-          python -X utf8 -u bot.py > botlog.txt 2>&1 &
-          BOTPID=$!
-          sleep 50
-          echo "===== ЛОГ БОТА (первые 50 сек) ====="
-          cat botlog.txt
-          echo "===== конец лога ====="
-          # ждём завершения процесса бота (он не должен завершаться)
-          wait $BOTPID
+        run: python -X utf8 -u bot.py
