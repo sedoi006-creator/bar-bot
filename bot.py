@@ -434,10 +434,14 @@ def run_once(token: str):
 
 
 async def _serve(app):
+    print("[1/4] initialize...", flush=True)
     await app.initialize()
+    me = await app.bot.get_me()
+    print(f"[2/4] getMe OK: @{me.username}", flush=True)
     await app.start()
+    print("[3/4] app.start OK", flush=True)
     await app.updater.start_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=False)
-    print("[polling активен]", flush=True)
+    print("[4/4] polling активен", flush=True)
     # держим процесс живым, пока работает polling
     while app.updater.running:
         await asyncio.sleep(5)
