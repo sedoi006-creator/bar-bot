@@ -4,6 +4,7 @@
 Запуск:  python bot.py
 Токен берётся из файла token.txt (рядом с этим скриптом) или из переменной BOT_TOKEN.
 """
+import asyncio
 import json
 import os
 import re
@@ -423,8 +424,26 @@ def run_once(token: str):
     app.add_handler(InlineQueryHandler(on_inline))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     print(f"Бот запущен. Рецептов в базе: {len(RECIPES)}, категорий: {len(CATEGORIES)}", flush=True)
-    # stop_signals=None — в GitHub Actions сигналы недоступны, иначе polling зависает
-    app.run_polling(allowed_updates=Update.ALL_TYPES, stop_signals=None)
+    # В GitHub Actions run_polling() может зависать, поэтому запускаем
+    # polling вручную: initialize() -> start() -> ожидание.
+    try:
+        asyncio.run(_serve(app))
+    except RuntimeError:
+        # цикл уже запущен (напр. внутри PTB) — используем как есть
+        app.run_polling(allowed_updates=Update.ALL_TYPES, stop_signals=None)
+
+
+async def _serve(app):
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=False)
+    print("[polling активен]", flush=True)
+    # держим процесс живым, пока работает polling
+    while app.updater.running:
+        await asyncio.sleep(5)
+    await app.updater.stop()
+    await app.stop()
+    await app.shutdown()
 
 
 if __name__ == "__main__":
