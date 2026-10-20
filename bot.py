@@ -18,7 +18,7 @@ from telegram import (InlineKeyboardButton, InlineKeyboardMarkup,
 from telegram.constants import ParseMode
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, ConversationHandler, InlineQueryHandler,
-                          MessageHandler, filters)
+                          MessageHandler, TypeHandler, filters)
 
 BASE = Path(__file__).parent
 RECIPES_FILE = BASE / "recipes.json"
@@ -397,7 +397,35 @@ def main():
 
 
 def run_once(token: str):
+    # Application создаём внутри _serve (внутри одного event loop),
+    # иначе polling стартует, но обработчики не срабатывают.
+    asyncio.run(_serve(token))
+
+
+async def _serve(token: str):
     app = Application.builder().token(token).build()
+    _register_handlers(app)
+    print(f"Бот запущен. Рецептов в базе: {len(RECIPES)}, категорий: {len(CATEGORIES)}", flush=True)
+
+    print("[1/4] initialize...", flush=True)
+    await app.initialize()
+    me = await app.bot.get_me()
+    print(f"[2/4] getMe OK: @{me.username}", flush=True)
+    await app.start()
+    print("[3/4] app.start OK", flush=True)
+    await app.updater.start_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=False)
+    print("[4/4] polling активен", flush=True)
+    # держим процесс живым, пока работает polling
+    while app.updater.running:
+        await asyncio.sleep(5)
+    await app.updater.stop()
+    await app.stop()
+    await app.shutdown()
+
+
+def _register_handlers(app):
+    # диагностика: логируем каждый входящий апдейт (видно, доходят ли сообщения)
+    app.add_handler(TypeHandler(Update, _log_update), group=-1)
     # диалог калькулятора регистрируем ДО общего поиска,
     # иначе «76 г» съест обработчик поиска рецептов
     sj_conv = ConversationHandler(
@@ -423,31 +451,18 @@ def run_once(token: str):
     app.add_handler(CallbackQueryHandler(on_back, pattern=r"^back$"))
     app.add_handler(InlineQueryHandler(on_inline))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
-    print(f"Бот запущен. Рецептов в базе: {len(RECIPES)}, категорий: {len(CATEGORIES)}", flush=True)
-    # В GitHub Actions run_polling() может зависать, поэтому запускаем
-    # polling вручную: initialize() -> start() -> ожидание.
+
+
+async def _log_update(update, context):
     try:
-        asyncio.run(_serve(app))
-    except RuntimeError:
-        # цикл уже запущен (напр. внутри PTB) — используем как есть
-        app.run_polling(allowed_updates=Update.ALL_TYPES, stop_signals=None)
-
-
-async def _serve(app):
-    print("[1/4] initialize...", flush=True)
-    await app.initialize()
-    me = await app.bot.get_me()
-    print(f"[2/4] getMe OK: @{me.username}", flush=True)
-    await app.start()
-    print("[3/4] app.start OK", flush=True)
-    await app.updater.start_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=False)
-    print("[4/4] polling активен", flush=True)
-    # держим процесс живым, пока работает polling
-    while app.updater.running:
-        await asyncio.sleep(5)
-    await app.updater.stop()
-    await app.stop()
-    await app.shutdown()
+        u = update.effective_update
+        kind = u.__class__.__name__ if u else "?"
+        text = ""
+        if update.effective_message and update.effective_message.text:
+            text = update.effective_message.text[:40]
+        print(f"[апдейт] {kind} от {update.effective_user.id if update.effective_user else '?'}: {text}", flush=True)
+    except Exception as e:
+        print(f"[апдейт] ошибка логирования: {e}", flush=True)
 
 
 if __name__ == "__main__":

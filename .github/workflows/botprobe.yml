@@ -13,13 +13,13 @@ jobs:
           python-version: '3.12'
       - name: Install
         run: pip install -r requirements.txt
-      - name: Run bot for 30 sec and capture log
+      - name: Run bot for 60 sec and capture log
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           PYTHONUNBUFFERED: "1"
         run: |
           set +e
-          timeout --signal=SIGKILL 30 python -X utf8 -u bot.py > botlog.txt 2>&1
+          timeout --signal=SIGKILL 60 python -X utf8 -u bot.py > botlog.txt 2>&1
           echo "exit=$?"
           echo "===== BOTLOG ====="
           cat botlog.txt
