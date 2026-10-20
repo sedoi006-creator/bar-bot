@@ -256,10 +256,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<code>@ваш_бот_имя название</code>."
     )
     kb_main = category_keyboard()
-    kb = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🧮 Калькулятор суперджуса", callback_data="sjopen")]]
-        + kb_main.inline_keyboard
-    )
+    rows = [[InlineKeyboardButton("🧮 Калькулятор суперджуса", callback_data="sjopen")]]
+    rows += [list(r) for r in kb_main.inline_keyboard]
+    kb = InlineKeyboardMarkup(rows)
     await update.message.reply_text(
         text, parse_mode=ParseMode.HTML, reply_markup=kb)
 
@@ -319,10 +318,9 @@ async def on_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     kb_main = category_keyboard()
-    kb = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🧮 Калькулятор суперджуса", callback_data="sjopen")]]
-        + kb_main.inline_keyboard
-    )
+    rows = [[InlineKeyboardButton("🧮 Калькулятор суперджуса", callback_data="sjopen")]]
+    rows += [list(r) for r in kb_main.inline_keyboard]
+    kb = InlineKeyboardMarkup(rows)
     await query.edit_message_text(
         "🍸 <b>Выберите категорию:</b>",
         parse_mode=ParseMode.HTML, reply_markup=kb)
@@ -332,10 +330,9 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     results = search(update.message.text)
     if not results:
         kb_main = category_keyboard()
-        kb = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🧮 Калькулятор суперджуса", callback_data="sjopen")]]
-            + kb_main.inline_keyboard
-        )
+        rows = [[InlineKeyboardButton("🧮 Калькулятор суперджуса", callback_data="sjopen")]]
+        rows += [list(r) for r in kb_main.inline_keyboard]
+        kb = InlineKeyboardMarkup(rows)
         await update.message.reply_text(
             "😕 Ничего не нашлось. Проверьте название или выберите категорию:",
             reply_markup=kb)
@@ -455,11 +452,8 @@ def _register_handlers(app):
 
 async def _log_update(update, context):
     try:
-        u = update.effective_update
-        kind = u.__class__.__name__ if u else "?"
-        text = ""
-        if update.effective_message and update.effective_message.text:
-            text = update.effective_message.text[:40]
+        kind = update.effective_message.__class__.__name__ if update.effective_message else "?"
+        text = (update.effective_message.text or "")[:40] if update.effective_message else ""
         print(f"[апдейт] {kind} от {update.effective_user.id if update.effective_user else '?'}: {text}", flush=True)
     except Exception as e:
         print(f"[апдейт] ошибка логирования: {e}", flush=True)
